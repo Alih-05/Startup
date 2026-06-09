@@ -66,8 +66,8 @@ async function startServer() {
     helmet({
       contentSecurityPolicy: {
         directives: {
-          defaultSrc: ["'self'"],
           
+          defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
             "'unsafe-inline'",
@@ -81,13 +81,16 @@ async function startServer() {
             "wss://startup-gurz.onrender.com",
             "https://firestore.googleapis.com",
             "https://*.firebaseio.com",
-            "https://*.identitytoolkit.googleapis.com",
+            "https://identitytoolkit.googleapis.com",
             "https://securetoken.googleapis.com"
           ],
           imgSrc: ["'self'", "data:", "blob:", "*"],
+          frameSrc: ["'self'", "https://*.firebaseapp.com"],
           upgradeInsecureRequests: null,
         },
       },
+
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     })
   );
   const PORT = 3000;
