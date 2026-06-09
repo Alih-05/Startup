@@ -64,7 +64,20 @@ async function startServer() {
   const app = express();
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com"],
+          connectSrc: [
+            "'self'",
+            "wss://startup-gurz.onrender.com",
+            "https://firestore.googleapis.com",
+            "https://*.firebaseio.com"
+          ],
+          imgSrc: ["'self'", "data:", "https://*.google.com", "https://*.googleusercontent.com"],
+          upgradeInsecureRequests: null,
+        },
+      },
     })
   );
   const PORT = 3000;
