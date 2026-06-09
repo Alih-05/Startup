@@ -1,0 +1,17 @@
+<svg width="200" height="240" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logo_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF" />
+      <stop offset="50%" stop-color="#0891B2" />
+      <stop offset="100%" stop-color="#2DD4BF" />
+    </linearGradient>
+  </defs>
+  <!-- Hanger Hook -->
+  <path d="M100 20C110 20 115 25 115 30C115 35 110 40 100 40C90 40 85 35 85 30" stroke="url(#logo_grad)" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Hanger Body -->
+  <path d="M100 40L180 80L160 80C160 80 140 70 100 70C60 70 40 80 40 80L20 80L100 40Z" fill="url(#logo_grad)"/>
+  <!-- Stylized S and Dress -->
+  <path d="M100 75C130 75 160 95 160 135C160 175 130 200 100 200C70 200 40 175 40 135C40 95 70 75 100 75ZM100 90C75 90 55 105 55 135C55 165 75 185 100 185C125 185 145 165 145 135C145 105 125 90 100 90Z" fill="url(#logo_grad)"/>
+  <path d="M100 110C110 110 115 115 115 120C115 125 110 130 100 130C90 130 85 125 85 120C85 115 90 110 100 110Z" fill="url(#logo_grad)"/>
+  <path d="M100 130L130 180H70L100 130Z" fill="url(#logo_grad)"/>
+</svg>

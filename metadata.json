@@ -1,0 +1,5 @@
+{
+  "name": "StyleMirror",
+  "description": "Загружайте ваше фото и мы покажем как это одежда будет смотреться с виду на вас",
+  "requestFramePermissions": []
+}

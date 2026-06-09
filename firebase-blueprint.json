@@ -1,0 +1,197 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "themeColor": { "type": "string" },
+            "fontFamily": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "WardrobeItem": {
+      "title": "WardrobeItem",
+      "description": "An item of clothing in the user's wardrobe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string", "description": "Owner's UID" },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "imageUrl", "createdAt"]
+    },
+    "Look": {
+      "title": "Look",
+      "description": "A saved outfit look",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string", "description": "Owner's UID" },
+        "imageUrl": { "type": "string" },
+        "name": { "type": "string" },
+        "wardrobeIds": { "type": "array", "items": { "type": "string" }, "description": "IDs of wardrobe items used" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "imageUrl", "createdAt"]
+    },
+    "History": {
+      "title": "History",
+      "description": "A record of a user's clothing generation request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string", "description": "Owner's UID" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "description", "imageUrl", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A message in the trend support chat",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role", "content"]
+    },
+    "SharedLook": {
+      "title": "SharedLook",
+      "description": "A look shared with the community",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lookId": { "type": "string" },
+        "uid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "name": { "type": "string" },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lookId", "uid", "imageUrl", "createdAt"]
+    },
+    "LookComment": {
+      "title": "LookComment",
+      "description": "A comment on a shared look",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lookId": { "type": "string" },
+        "uid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lookId", "uid", "authorName", "text", "createdAt"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "A connection between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "initiatorId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "initiatorName": { "type": "string" },
+        "initiatorPhoto": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "receiverPhoto": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["initiatorId", "receiverId", "initiatorName", "receiverName", "status", "createdAt"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "A private message between friends",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chatId": { "type": "string", "description": "Concatenated UIDs of both users (min_max)" },
+        "participantIds": { "type": "array", "items": { "type": "string" }, "description": "UIDs of both participants" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "participantIds", "senderId", "receiverId", "text", "createdAt"]
+    },
+    "RefundRequest": {
+      "title": "RefundRequest",
+      "description": "A request for a refund from a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "plan", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/wardrobe/{itemId}": {
+      "schema": "WardrobeItem",
+      "description": "Clothing items collection"
+    },
+    "/looks/{lookId}": {
+      "schema": "Look",
+      "description": "Saved looks collection"
+    },
+    "/history/{historyId}": {
+      "schema": "History",
+      "description": "User request history"
+    },
+    "/chat_messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Trend support chat messages"
+    },
+    "/shared_looks/{sharedLookId}": {
+      "schema": "SharedLook",
+      "description": "Community shared looks"
+    },
+    "/look_comments/{commentId}": {
+      "schema": "LookComment",
+      "description": "Comments on community shared looks"
+    },
+    "/friendships/{friendshipId}": {
+      "schema": "Friendship",
+      "description": "Mutual friendships and requests between users"
+    },
+    "/direct_messages/{messageId}": {
+      "schema": "DirectMessage",
+      "description": "Private messages between friends"
+    },
+    "/refund_requests/{refundId}": {
+      "schema": "RefundRequest",
+      "description": "Requests for refunds"
+    }
+  }
+}

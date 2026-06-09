@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --theme-color: #4f46e5;
+  --bg-color: #f8fafc;
+  --font-family: "Inter";
+}
+
+html {
+  font-family: var(--font-family), ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme {
+  --font-sans: var(--font-family), ui-sans-serif, system-ui, sans-serif;
+  --color-primary: var(--theme-color);
+  --color-site-bg: var(--bg-color);
+}
+
+@layer base {
+  body {
+    @apply antialiased bg-site-bg text-gray-900 transition-colors duration-500;
+    font-family: var(--font-family), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .dark body {
+    @apply text-gray-100;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  * {
+    font-family: inherit;
+  }
+}

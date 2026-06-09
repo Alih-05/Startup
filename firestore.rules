@@ -1,0 +1,177 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 0.1 Connection Test
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // ===============================================================
+    // 3. Path Variable Hardening & Global Helpers
+    // ===============================================================
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    
+    // Admin check - only if app needs it. User requested admin privileges.
+    function isAdmin() { 
+      return isSignedIn() && request.auth.token.email == 'jo994ti@mail.ru'; 
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUrl(url) {
+      return url is string && (
+        (url.matches("^data:image/.*") && url.size() < 1048576) || 
+        (url.matches("^https?://.*") && url.size() < 2048)
+      );
+    }
+
+    // ===============================================================
+    // 2. Validation Blueprints (The "Anti-Update-Gap")
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.keys().size() >= 3 && data.keys().size() <= 8 &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() < 255 &&
+             (data.avatar_data == null || isValidUrl(data.avatar_data)) &&
+             (!('username' in data) || (data.username is string && data.username.size() < 100)) &&
+             (!('settings' in data) || data.settings is map) &&
+             (!('plan' in data) || data.plan in ['trial', 'basic', 'premium']) &&
+             (!('usage' in data) || data.usage is map);
+    }
+
+    function isValidWardrobeItem(data) {
+      return data.keys().hasAll(['uid', 'imageUrl', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidUrl(data.imageUrl) &&
+             (data.description == null || (data.description is string && data.description.size() < 500)) &&
+             (data.category == null || (data.category is string && data.category.size() < 50));
+    }
+
+    function isValidLook(data) {
+      return data.keys().hasAll(['uid', 'imageUrl', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidUrl(data.imageUrl) &&
+             (data.name == null || (data.name is string && data.name.size() < 100)) &&
+             (!('wardrobeIds' in data) || (data.wardrobeIds is list && data.wardrobeIds.size() < 20));
+    }
+
+    function isValidHistory(data) {
+      return data.keys().hasAll(['uid', 'description', 'imageUrl', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.description is string && data.description.size() < 1000 &&
+             isValidUrl(data.imageUrl);
+    }
+
+    function isValidSharedLook(data) {
+      return data.keys().hasAll(['uid', 'lookId', 'imageUrl', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.lookId is string &&
+             isValidUrl(data.imageUrl) &&
+             (data.authorName == null || (data.authorName is string && data.authorName.size() < 100)) &&
+             (data.authorPhoto == null || isValidUrl(data.authorPhoto)) &&
+             (data.name == null || (data.name is string && data.name.size() < 100)) &&
+             (data.likesCount == null || data.likesCount is int) &&
+             (data.commentsCount == null || data.commentsCount is int);
+    }
+
+    function isValidLookComment(data) {
+      return data.keys().hasAll(['lookId', 'uid', 'authorName', 'text', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.lookId is string &&
+             data.authorName is string && data.authorName.size() < 100 &&
+             data.text is string && data.text.size() < 2000;
+    }
+
+    // ===============================================================
+    // 1. The "Master Gate" (Relational Sync) & Operations
+    // ===============================================================
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) && 
+                    incoming().uid == existing().uid && 
+                    incoming().createdAt == existing().createdAt;
+    }
+
+    match /wardrobe/{itemId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isValidId(itemId) && incoming().uid == request.auth.uid && isValidWardrobeItem(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /looks/{lookId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isValidId(lookId) && incoming().uid == request.auth.uid && isValidLook(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /history/{historyId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isValidId(historyId) && incoming().uid == request.auth.uid && isValidHistory(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /shared_looks/{sharedLookId} {
+      allow read: if true;
+      allow create: if isValidId(sharedLookId) && incoming().uid == request.auth.uid && isValidSharedLook(incoming()) && incoming().createdAt == request.time;
+      allow update: if (
+        (isOwner(resource.data.uid) && isValidSharedLook(incoming()) && incoming().uid == existing().uid) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']) && (incoming().likesCount == existing().likesCount + 1 || incoming().likesCount == existing().likesCount - 1)) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount']) && (incoming().commentsCount == existing().commentsCount + 1 || incoming().commentsCount == existing().commentsCount - 1))
+      );
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    match /look_comments/{commentId} {
+      allow read: if true;
+      allow create: if isValidId(commentId) && incoming().uid == request.auth.uid && isValidLookComment(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isValidId(likeId) && incoming().uid == request.auth.uid && likeId == request.auth.uid + "_" + incoming().lookId;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /friendships/{friendshipId} {
+      allow read: if isSignedIn() && (resource.data.initiatorId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if isValidId(friendshipId) && request.auth.uid == incoming().initiatorId && incoming().status == 'pending' && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && request.auth.uid == resource.data.receiverId && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'accepted';
+      allow delete: if isSignedIn() && (request.auth.uid == resource.data.initiatorId || request.auth.uid == resource.data.receiverId);
+    }
+    
+    match /chat_messages/{messageId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isValidId(messageId) && incoming().uid == request.auth.uid && incoming().createdAt == request.time;
+    }
+
+    match /direct_messages/{messageId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isValidId(messageId) && incoming().senderId == request.auth.uid && incoming().participantIds.size() == 2 && request.auth.uid in incoming().participantIds && incoming().createdAt == request.time;
+    }
+
+    match /refund_requests/{refundId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(refundId) && incoming().userId == request.auth.uid && incoming().status == 'pending' && incoming().createdAt == request.time;
+      allow update, delete: if isAdmin();
+    }
+  }
+}
