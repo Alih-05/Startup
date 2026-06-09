@@ -62,7 +62,11 @@ try {
 
 async function startServer() {
   const app = express();
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    })
+  );
   const PORT = 3000;
 
   app.set('trust proxy', 1); // Trust first proxy
