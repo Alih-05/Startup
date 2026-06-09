@@ -67,14 +67,24 @@ async function startServer() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com"],
+          
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "https://apis.google.com",
+            "https://www.gstatic.com"
+          ],
+
           connectSrc: [
             "'self'",
             "wss://startup-gurz.onrender.com",
             "https://firestore.googleapis.com",
-            "https://*.firebaseio.com"
+            "https://*.firebaseio.com",
+            "https://*.identitytoolkit.googleapis.com",
+            "https://securetoken.googleapis.com"
           ],
-          imgSrc: ["'self'", "data:", "https://*.google.com", "https://*.googleusercontent.com"],
+          imgSrc: ["'self'", "data:", "blob:", "*"],
           upgradeInsecureRequests: null,
         },
       },
