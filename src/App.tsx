@@ -19,6 +19,8 @@ import { db } from './firebase';
 import { compressImage } from './lib/imageUtils';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, serverTimestamp, limit, onSnapshot, setDoc, increment } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './firebase';
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { PayPalButtons } from "@paypal/react-paypal-js";
 
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -357,8 +359,9 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
               )}
 
               {step === 'payment' && (
-                <form onSubmit={handlePay} className="space-y-4">
-                  <button 
+                <div className="space-y-4">
+                  {/* Кнопка Назад */}
+                  <button
                     type="button"
                     onClick={() => setStep('plans')}
                     className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-primary mb-4 transition-colors"
@@ -367,72 +370,64 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                     {t('backToEditor' as any)}
                   </button>
 
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between">
-                      <span className="text-sm font-bold text-gray-900">{selectedPlan.name}</span>
-                      <span className="text-sm font-bold text-primary">{selectedPlan.price}</span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{t('cardNumber' as any)}</label>
-                        <input
-                          required
-                          type="text"
-                          placeholder="0000 0000 0000 0000"
-                          value={cardInfo.number}
-                          onChange={(e) => setCardInfo(prev => ({ ...prev, number: e.target.value }))}
-                          className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-primary transition-all"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{t('expiryDate' as any)}</label>
-                          <input
-                            required
-                            type="text"
-                            placeholder="MM/YY"
-                            value={cardInfo.expiry}
-                            onChange={(e) => setCardInfo(prev => ({ ...prev, expiry: e.target.value }))}
-                            className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-primary transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{t('cvc' as any)}</label>
-                          <input
-                            required
-                            type="text"
-                            placeholder="123"
-                            value={cardInfo.cvc}
-                            onChange={(e) => setCardInfo(prev => ({ ...prev, cvc: e.target.value }))}
-                            className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-primary transition-all"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{t('cardHolder' as any)}</label>
-                        <input
-                          required
-                          type="text"
-                          placeholder="IVAN IVANOV"
-                          value={cardInfo.holder}
-                          onChange={(e) => setCardInfo(prev => ({ ...prev, holder: e.target.value }))}
-                          className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isPaying}
-                      className="w-full py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      {isPaying ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
-                      {t('payNow' as any)}
-                    </button>
+                  {/* Информация о выбранном тарифе */}
+                  <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between">
+                    <span className="text-sm font-bold text-gray-900">{selectedPlan?.name}</span>
+                    <span className="text-sm font-bold text-primary" style={{ color: themeColor }}>
+                      {selectedPlan?.price}
+                    </span>
                   </div>
-                </form>
+
+                  {/* УМНЫЕ КНОПКИ PAYPAL */}
+                  <div className="pt-2">
+                    <PayPalButtons
+                      style={{ layout: "vertical", shape: "rect", label: "pay" }}
+
+                      // 1. Создаем транзакцию в PayPal
+                      createOrder={(data, actions) => {
+                        // Вытаскиваем чистую цену без знака $, например "29.99"
+                        const cleanPrice = selectedPlan?.price.replace('$', '') || "9.99";
+
+                        return actions.order.create({
+                          intent: "CAPTURE",
+                          purchase_units: [
+                            {
+                              amount: {
+                                currency_code: "USD",
+                                value: cleanPrice,
+                              },
+                              description: `StyleMirror - ${selectedPlan?.name}`,
+                            },
+                          ],
+                        });
+                      }}
+
+                      // 2. Обрабатываем успешное списание
+                      onApprove={async (data, actions) => {
+                        if (actions.order) {
+                          setIsPaying(true);
+
+                          // Схлопываем и подтверждаем платеж на стороне PayPal
+                          await actions.order.capture();
+
+                          // Обновляем план пользователя в Firebase/базе данных через твой хук
+                          await updatePlan(selectedPlan.id);
+
+                          setIsPaying(false);
+                          // Переключаем модалку на экран красивого чека
+                          setStep('success');
+                        }
+                      }}
+
+                      // 3. Если что-то пошло не так (нет денег на карте, закрыли окно)
+                      onError={(err) => {
+                        console.error("PayPal Error:", err);
+                        alert("Ошибка проведения платежа. Проверьте баланс вашей карты.");
+                        setIsPaying(false);
+                      }}
+                    />
+                  </div>
+                </div>
               )}
 
               {step === 'success' && (
@@ -2727,7 +2722,9 @@ export default function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <MainApp />
+        <PayPalScriptProvider options={{ clientId: "test" }}>
+          <MainApp />
+        </PayPalScriptProvider>
       </AuthProvider>
     </LanguageProvider>
   );

@@ -66,31 +66,24 @@ async function startServer() {
     helmet({
       contentSecurityPolicy: {
         directives: {
-          
           defaultSrc: ["'self'"],
-          scriptSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "'unsafe-eval'",
-            "https://apis.google.com",
-            "https://www.gstatic.com"
-          ],
+
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],
 
           connectSrc: [
             "'self'",
-            "wss://startup-gurz.onrender.com",
-            "https://firestore.googleapis.com",
             "https://*.firebaseio.com",
-            "https://identitytoolkit.googleapis.com",
-            "https://securetoken.googleapis.com"
+            "https://*.googleapis.com",
+            "wss://startup-gurz.onrender.com",
+            "https://api-m.sandbox.paypal.com",
+            "https://www.sandbox.paypal.com"
           ],
-          imgSrc: ["'self'", "data:", "blob:", "*"],
-          frameSrc: ["'self'", "https://*.firebaseapp.com"],
-          upgradeInsecureRequests: null,
+
+          imgSrc: ["'self'", "data:", "https://www.paypalobjects.com", "https://www.google.com"],
+
+          frameSrc: ["'self'", "https://www.sandbox.paypal.com", "https://www.paypal.com"],
         },
       },
-
-      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     })
   );
   const PORT = 3000;
