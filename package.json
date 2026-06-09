@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "tsx": "^4.21.0",
+    "helmet": "^7.1.0",
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/bcryptjs": "^2.4.6",
