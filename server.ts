@@ -104,7 +104,7 @@ async function startServer() {
             "https://www.sandbox.paypal.com",
             "https://www.paypal.com",
             "https://*.firebaseapp.com",
-            "https://stylemirror-489419.firebaseapp.com"
+            "https://stylemirror-489419.firebaseapp.com",
             "https://www.google.com/recaptcha/",
             "https://recaptcha.google.com/recaptcha/"
           ],
