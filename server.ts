@@ -64,26 +64,7 @@ async function startServer() {
   const app = express();
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-
-          scriptSrc: ["'self'", "'unsafe-inline'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],
-
-          connectSrc: [
-            "'self'",
-            "https://*.firebaseio.com",
-            "https://*.googleapis.com",
-            "wss://startup-gurz.onrender.com",
-            "https://api-m.sandbox.paypal.com",
-            "https://www.sandbox.paypal.com"
-          ],
-
-          imgSrc: ["'self'", "data:", "https://www.paypalobjects.com", "https://www.google.com"],
-
-          frameSrc: ["'self'", "https://www.sandbox.paypal.com", "https://www.paypal.com"],
-        },
-      },
+      contentSecurityPolicy: false,
     })
   );
   const PORT = 3000;
