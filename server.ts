@@ -85,6 +85,7 @@ async function startServer() {
             "https://*.firebaseio.com",
             "https://*.googleapis.com",
             "wss://startup-gurz.onrender.com",
+            "wss://startup-gurz.onrender.com:*",
             "https://api-m.sandbox.paypal.com",
             "https://www.sandbox.paypal.com",
             "https://identitytoolkit.googleapis.com"
