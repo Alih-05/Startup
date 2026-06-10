@@ -100,7 +100,8 @@ async function startServer() {
             "'self'",
             "https://www.sandbox.paypal.com",
             "https://www.paypal.com",
-            "https://*.firebaseapp.com"
+            "https://*.firebaseapp.com",
+            "https://stylemirror-489419.firebaseapp.com"
           ],
         },
       },
