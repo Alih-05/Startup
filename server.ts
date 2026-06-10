@@ -75,7 +75,7 @@ async function startServer() {
             "https://www.paypal.com",
             "https://www.sandbox.paypal.com",
             "https://apis.google.com",
-            "https://www.gstatic.com"
+            "https://www.gstatic.com",
             "https://www.google.com/recaptcha/",
             "https://www.gstatic.com/recaptcha/"
           ],
