@@ -3,6 +3,58 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Loader2, Sparkles, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useState, useRef } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
+
+export default function AuthModal() {
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token); // Сохраняем токен, когда юзер прожал галочку
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!captchaToken) {
+      alert('Пожалуйста, подтвердите, что вы не робот!');
+      return;
+    }
+
+    // Отправляем запрос на регистрацию на бэкенд и докидываем туда токен капчи
+    const response = await fetch('https://startup-gurz.onrender.com/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: '...',
+        password: '...',
+        captchaToken // <-- Отправляем токен бэкенду
+      }),
+    });
+
+    // Сбрасываем капчу после отправки формы
+    recaptchaRef.current?.reset();
+    setCaptchaToken(null);
+  };
+
+  return (
+    <form onSubmit={handleRegisterSubmit}>
+      {/* Твои поля ввода Email и Пароля... */}
+
+      {/* Виджет капчи */}
+      <div className="flex justify-center my-4">
+        <ReCAPTCHA
+          ref={recaptchaRef}
+          sitekey="ВСТАВЬ_СЮДА_ПУБЛИЧНЫЙ_SITE_KEY"
+          onChange={handleCaptchaChange}
+        />
+      </div>
+
+      <button type="submit">Регистрация</button>
+    </form>
+  );
+}
 
 interface AuthModalProps {
   isOpen: boolean;

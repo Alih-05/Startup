@@ -7,6 +7,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import SqliteStore from 'better-sqlite3-session-store';
 import helmet from 'helmet';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -75,6 +76,8 @@ async function startServer() {
             "https://www.sandbox.paypal.com",
             "https://apis.google.com",
             "https://www.gstatic.com"
+            "https://www.google.com/recaptcha/",
+            "https://www.gstatic.com/recaptcha/"
           ],
 
           connectSrc: [
@@ -102,12 +105,48 @@ async function startServer() {
             "https://www.paypal.com",
             "https://*.firebaseapp.com",
             "https://stylemirror-489419.firebaseapp.com"
+            "https://www.google.com/recaptcha/",
+            "https://recaptcha.google.com/recaptcha/"
           ],
         },
       },
     })
   );
   const PORT = 3000;
+
+  app.post('/api/register', async (req, res) => {
+    const { email, password, captchaToken } = req.body;
+
+    if (!captchaToken) {
+      return res.status(400).json({ message: 'Токен капчи отсутствует' });
+    }
+
+    try {
+      const googleResponse = await axios.post(
+        `https://www.google.com/recaptcha/api/siteverify`,
+        null,
+        {
+          params: {
+            secret: process.env.RECAPTCHA_SECRET_KEY,
+            response: captchaToken,
+          },
+        }
+      );
+
+      const { success } = googleResponse.data;
+
+      if (!success) {
+        return res.status(400).json({ message: 'Проверка на робота не пройдена!' });
+      }
+
+      // Если капча успешна, сервер отвечает фронтенду "ОК, создавай юзера"
+      return res.status(200).json({ success: true, message: 'Капча успешно пройдена' });
+
+    } catch (error) {
+      console.error('Ошибка верификации капчи:', error);
+      return res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+    }
+  });
 
   app.set('trust proxy', 1); // Trust first proxy
   app.use(express.json({ limit: '10mb' }));
