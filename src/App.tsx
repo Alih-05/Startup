@@ -21,6 +21,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, o
 import { handleFirestoreError, OperationType } from './firebase';
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { PayPalButtons } from "@paypal/react-paypal-js";
+import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
 
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -2723,6 +2724,11 @@ export default function App() {
     <LanguageProvider>
       <AuthProvider>
         <PayPalScriptProvider options={{ clientId: "test" }}>
+          
+          <div className="flex justify-center pt-4 w-full">
+            <LiveRegistrationBanner />
+          </div>
+
           <MainApp />
         </PayPalScriptProvider>
       </AuthProvider>
