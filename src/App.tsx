@@ -19,9 +19,10 @@ import { db } from './firebase';
 import { compressImage } from './lib/imageUtils';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, serverTimestamp, limit, onSnapshot, setDoc, increment } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './firebase';
-import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { PayPalButtons } from "@paypal/react-paypal-js";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
+import { useEffect } from "react";
+import ReactGA from "react-ga4";
 
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -2719,11 +2720,17 @@ function MainApp() {
   );
 }
 
+
 export default function App() {
+  useEffect(() => {
+    ReactGA.send({ hitType: "pageview", page: window.location.pathname });
+  }, []
+  );
+
   return (
     <LanguageProvider>
       <AuthProvider>
-        <PayPalScriptProvider options={{ clientId: "test" }}>
+        <PayPalScriptProvider options={{ clientId: "Aa6VkXcyh2oeiRKVDy6H1_uT1U1N5IomnlfCy1Jx_Du197Xo6eApPWuI2V_l53JiFvxGUcjquTAk-gdj" }}>
           
           <div className="flex justify-center pt-4 w-full">
             <LiveRegistrationBanner />
