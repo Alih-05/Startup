@@ -23,6 +23,8 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
 import ReactGA from "react-ga4";
 
+ReactGA.initialize("G-RM09G759SP");
+
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
