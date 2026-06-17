@@ -21,7 +21,6 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, o
 import { handleFirestoreError, OperationType } from './firebase';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
-import { useEffect } from "react";
 import ReactGA from "react-ga4";
 
 // Initialize Gemini API
