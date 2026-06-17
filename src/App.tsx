@@ -5,10 +5,11 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { Upload, Shirt, User, Loader2, Download, RefreshCw, Sparkles, Image as ImageIcon, LogIn, Globe, Trash2, Plus, LayoutGrid, X, CheckCircle2, Edit2, ArrowLeft, ArrowRight, History, MessageCircle, Send, Users, Heart, UserPlus, UserMinus, UserCheck, Maximize2, Check } from 'lucide-react';
+import { Upload, Shirt, User, Loader2, Download, RefreshCw, Sparkles, Image as ImageIcon, LogIn, Globe, Trash2, Plus, LayoutGrid, X, CheckCircle2, Edit2, ArrowLeft, ArrowRight, History, MessageCircle, Send, Users, Heart, UserPlus, UserMinus, UserCheck, Maximize2, Check, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import AuthModal from './components/AuthModal';
 import ProfilePage from './components/ProfilePage';
@@ -183,7 +184,10 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [cardInfo, setCardInfo] = useState({ number: '', expiry: '', cvc: '', holder: '' });
   const [isPaying, setIsPaying] = useState(false);
-  
+
+  // НОВОЕ СОСТОЯНИЕ ДЛЯ ОШИБОК И ОТМЕНЫ
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
   const { themeColor } = user?.settings || { themeColor: '#4f46e5' };
 
   if (!user) return null;
@@ -238,6 +242,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
     setSelectedPlan(null);
     setBillingCycle('monthly');
     setCardInfo({ number: '', expiry: '', cvc: '', holder: '' });
+    setPaymentError(null); // Сбрасываем ошибку при закрытии
     onClose();
   };
 
@@ -277,7 +282,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                 </div>
               </div>
             </div>
-            
+
             <div className="flex-1 p-8 overflow-y-auto max-h-[80vh]">
               {step === 'plans' && (
                 <div className="space-y-6">
@@ -316,14 +321,15 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                             resetAndClose();
                           } else {
                             setSelectedPlan(p);
+                            setPaymentError(null); // Очищаем старые ошибки перед переходом
                             setStep('payment');
                           }
                         }}
                         disabled={p.current}
                         className={cn(
                           "p-4 rounded-2xl border-2 transition-all flex items-center justify-between group text-left relative overflow-hidden",
-                          p.current 
-                            ? "bg-gray-50 cursor-default" 
+                          p.current
+                            ? "bg-gray-50 cursor-default"
                             : "border-gray-100 hover:border-gray-200"
                         )}
                         style={{ borderColor: p.current ? themeColor : undefined }}
@@ -381,6 +387,24 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                     </span>
                   </div>
 
+                  {/* КРАСИВАЯ ПЛАШКА ОШИБКИ (ЕСЛИ ПЛАТЕЖ ОТМЕНЕН ИЛИ ЗАБЛОКИРОВАН) */}
+                  <AnimatePresence>
+                    {paymentError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start gap-3"
+                      >
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                        <div className="text-xs leading-relaxed">
+                          <p className="font-bold mb-0.5">Транзакция не завершена</p>
+                          <p className="opacity-90">{paymentError}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* УМНЫЕ КНОПКИ PAYPAL */}
                   <div className="pt-2">
                     <PayPalButtons
@@ -388,7 +412,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
 
                       // 1. Создаем транзакцию в PayPal
                       createOrder={(data, actions) => {
-                        // Вытаскиваем чистую цену без знака $, например "29.99"
+                        setPaymentError(null); // Сбрасываем прошлую ошибку перед открытием окна
                         const cleanPrice = selectedPlan?.price.replace('$', '') || "9.99";
 
                         return actions.order.create({
@@ -408,25 +432,34 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                       // 2. Обрабатываем успешное списание
                       onApprove={async (data, actions) => {
                         if (actions.order) {
-                          setIsPaying(true);
-
-                          // Схлопываем и подтверждаем платеж на стороне PayPal
-                          await actions.order.capture();
-
-                          // Обновляем план пользователя в Firebase/базе данных через твой хук
-                          await updatePlan(selectedPlan.id);
-
-                          setIsPaying(false);
-                          // Переключаем модалку на экран красивого чека
-                          setStep('success');
+                          try {
+                            setIsPaying(true);
+                            await actions.order.capture();
+                            await updatePlan(selectedPlan.id);
+                            setIsPaying(false);
+                            setStep('success');
+                          } catch (e) {
+                            console.error(e);
+                            setIsPaying(false);
+                            setPaymentError("Не удалось зафиксировать платеж на стороне сервера. Попробуйте еще раз.");
+                          }
                         }
                       }}
 
-                      // 3. Если что-то пошло не так (нет денег на карте, закрыли окно)
+                      // 3. Обработка ОТМЕНЫ пользователем (когда закрыли окно)
+                      onCancel={(data) => {
+                        console.log("PayPal Cancelled:", data);
+                        setIsPaying(false);
+                        // Записываем ошибку в стейт вместо алерта
+                        setPaymentError("Оплата была отменена пользователем. Средства с вашей карты не списывались.");
+                      }}
+
+                      // 4. Если что-то пошло не так технически (нет денег, карта заблокирована)
                       onError={(err) => {
                         console.error("PayPal Error:", err);
-                        alert("Ошибка проведения платежа. Проверьте баланс вашей карты.");
                         setIsPaying(false);
+                        // Записываем техническую ошибку в стейт
+                        setPaymentError("Ошибка проведения платежа. Пожалуйста, проверьте баланс вашей карты или попробуйте другую карту.");
                       }}
                     />
                   </div>
@@ -435,20 +468,20 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
 
               {step === 'success' && (
                 <div className="h-full flex flex-col items-center justify-center py-8">
-                  <motion.div 
+                  <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", damping: 15 }}
                     className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-8 relative"
                   >
                     <CheckCircle2 size={48} strokeWidth={2.5} />
-                    <motion.div 
+                    <motion.div
                       animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0, 0.3] }}
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 bg-emerald-500/20 rounded-full"
                     />
                   </motion.div>
-                  
+
                   <div className="text-center space-y-3 mb-10">
                     <h3 className="text-2xl font-bold text-gray-900">{t('thankYouPurchase' as any)}</h3>
                     <p className="text-sm text-gray-500 max-w-[280px] mx-auto leading-relaxed">
@@ -489,7 +522,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                       {t('securePayment')}
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-4 items-center">
                     <div className="flex items-center gap-2">
                       <div className="w-10 h-6 bg-gray-50 rounded flex items-center justify-center border border-gray-100 italic font-black text-[10px] text-blue-800">VISA</div>
@@ -505,9 +538,9 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                   </div>
                 </div>
               )}
-              
+
               {step !== 'success' && (
-                <button 
+                <button
                   onClick={resetAndClose}
                   className="w-full mt-6 py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
                 >
