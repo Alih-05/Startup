@@ -115,40 +115,6 @@ async function startServer() {
   );
   const PORT = 3000;
 
-  app.post('/api/register', async (req, res) => {
-    const { email, password, captchaToken } = req.body;
-
-    if (!captchaToken) {
-      return res.status(400).json({ message: 'Токен капчи отсутствует' });
-    }
-
-    try {
-      const googleResponse = await axios.post(
-        `https://www.google.com/recaptcha/api/siteverify`,
-        null,
-        {
-          params: {
-            secret: process.env.RECAPTCHA_SECRET_KEY,
-            response: captchaToken,
-          },
-        }
-      );
-
-      const { success } = googleResponse.data;
-
-      if (!success) {
-        return res.status(400).json({ message: 'Проверка на робота не пройдена!' });
-      }
-
-      // Если капча успешна, сервер отвечает фронтенду "ОК, создавай юзера"
-      return res.status(200).json({ success: true, message: 'Капча успешно пройдена' });
-
-    } catch (error) {
-      console.error('Ошибка верификации капчи:', error);
-      return res.status(500).json({ message: 'Внутренняя ошибка сервера' });
-    }
-  });
-
   app.set('trust proxy', 1); // Trust first proxy
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
@@ -180,11 +146,35 @@ async function startServer() {
     }
   }));
 
-  // Auth Routes
+  // ОБЪЕДИНЕННЫЙ РОУТ РЕГИСТРАЦИИ (Капча + Запись в БД)
   app.post('/api/register', async (req, res) => {
-    const { username, email, password } = req.body;
-    console.log(`Registration attempt for: ${email}`);
+    const { username, email, password, captchaToken } = req.body;
+
+    if (!captchaToken) {
+      return res.status(400).json({ error: 'Токен капчи отсутствует' });
+    }
+
     try {
+      // 1. Проверка капчи в Google
+      const googleResponse = await axios.post(
+        `https://www.google.com/recaptcha/api/siteverify`,
+        null,
+        {
+          params: {
+            secret: process.env.RECAPTCHA_SECRET_KEY,
+            response: captchaToken,
+          },
+        }
+      );
+
+      const { success } = googleResponse.data;
+
+      if (!success) {
+        return res.status(400).json({ error: 'Проверка на робота не пройдена!' });
+      }
+
+      // 2. Если капча успешна — регистрируем пользователя в БД
+      console.log(`Registration attempt for: ${email}`);
       const hashedPassword = await bcrypt.hash(password, 10);
       const stmt = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)');
       const info = stmt.run(username, email, hashedPassword);
@@ -192,14 +182,15 @@ async function startServer() {
       const user = { id: info.lastInsertRowid, username, email };
       (req.session as any).userId = user.id;
 
-      // Generate a simple token as fallback for iframe cookie issues
+      // Fallback-токен
       const token = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }));
 
       console.log(`User registered successfully: ${user.id}`);
       res.json({ user, token });
+
     } catch (err: any) {
       console.error('Registration error:', err);
-      if (err.message.includes('UNIQUE constraint failed')) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
         res.status(400).json({ error: 'Username or email already exists' });
       } else {
         res.status(500).json({ error: `Registration failed: ${err.message}` });
@@ -262,8 +253,6 @@ async function startServer() {
   app.post('/api/forgot-password', (req, res) => {
     const { email } = req.body;
     console.log(`Password reset requested for: ${email}`);
-    // In a real app, you'd send an email here.
-    // For this demo, we'll just return success.
     res.json({ success: true, message: 'If an account exists with that email, a reset link has been sent.' });
   });
 
@@ -335,7 +324,6 @@ async function startServer() {
     const { image_data, description, category } = req.body;
 
     try {
-      // Check limit
       const count: any = db.prepare('SELECT count(*) as count FROM wardrobe WHERE user_id = ?').get(userId);
       if (count.count >= 10) {
         return res.status(400).json({ error: 'Wardrobe limit reached (max 10 items)' });
@@ -429,7 +417,38 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+  // Эндпоинт для создания платежа через Bereke Bank
+  app.post('/api/payment/register', async (req, res) => {
+    try {
+      const { amount } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Некорректная сумма платежа" });
+      }
+
+      const paymentData = {
+        userName: "sandbox_stylemirror_login",
+        password: "sandbox_password",
+        orderNumber: `order_${Date.now()}`,
+        amount: amount * 100,
+        currency: "398",
+        returnUrl: "https://startup-gurz.onrender.com/success"
+      };
+
+      console.log("Регистрация платежа в Bereke Bank Sandbox:", paymentData);
+
+      res.json({
+        orderId: paymentData.orderNumber,
+        formUrl: `https://3dsec.bereke.kz/payment/merchants/cards.html?mdOrder=${paymentData.orderNumber}`
+      });
+
+    } catch (error) {
+      console.error("Ошибка платежной системы:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // Vite middleware для раздачи фронтенда (СТРОГО перед app.listen)
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -443,40 +462,9 @@ async function startServer() {
     });
   }
 
+  // Запуск сервера наружу на хост 0.0.0.0
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
-  });
-
-  // Эндпоинт для создания платежа через Bereke Bank
-  app.post('/api/payment/register', async (req, res) => {
-    try {
-      const { amount } = req.body; // Получаем сумму из фронтенда (например, 4900 тенге)
-
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Некорректная сумма платежа" });
-      }
-
-      const paymentData = {
-        userName: "sandbox_stylemirror_login", // Тестовый логин песочницы
-        password: "sandbox_password",
-        orderNumber: `order_${Date.now()}`,    // Уникальный ID заказа на основе времени
-        amount: amount * 100,                  // Переводим тенге в тиыны (1 KZT = 100 тиын)
-        currency: "398",                       // Код валюты KZT
-        returnUrl: "https://startup-gurz.onrender.com/success" // Живой URL Render
-      };
-
-      console.log("Регистрация платежа в Bereke Bank Sandbox:", paymentData);
-
-      // Имитируем успешный ответ банка (Mock Response) и отдаем ссылку на оплату
-      res.json({
-        orderId: paymentData.orderNumber,
-        formUrl: `https://3dsec.bereke.kz/payment/merchants/cards.html?mdOrder=${paymentData.orderNumber}`
-      });
-
-    } catch (error) {
-      console.error("Ошибка платежной системы:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
   });
 }
 
