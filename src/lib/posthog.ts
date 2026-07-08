@@ -2,8 +2,8 @@ import posthog from 'posthog-js';
 
 export function initPostHog() {
     if (typeof window !== 'undefined') {
-        const apiKey = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
-        const host = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
+        const apiKey = import.meta.env.VITE_POSTHOG_KEY;
+        const host = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
 
         if (apiKey) {
             posthog.init(apiKey, {

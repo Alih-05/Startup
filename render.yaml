@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: stylemirror-front
+    env: static
+    routes:
+      - path: /*
+        routingPolicy: ip
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://apis.google.com https://www.gstatic.com https://www.google.com https://www.sandbox.paypal.com;"
