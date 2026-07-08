@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, googleProvider, signInWithPopup, onAuthStateChanged, db, doc, getDoc, setDoc, serverTimestamp, increment } from '../firebase';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { posthog } from '../lib/posthog';
 
 interface UserSettings {
   themeColor: string;
@@ -105,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           };
         }
+        posthog.identify(userData.uid, {
+          username: userData.username,
+          plan: userData.plan,
+        });
         setUser(userData);
       } else {
         setUser(null);
@@ -118,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
+      posthog.capture('user_logged_in', { method: 'google' });
     } catch (error) {
       console.error('Google login error:', error);
       throw error;
@@ -128,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { signInWithEmailAndPassword } = await import('../firebase');
       await signInWithEmailAndPassword(auth, email, pass);
+      posthog.capture('user_logged_in', { method: 'email' });
     } catch (error) {
       console.error('Email login error:', error);
       throw error;
@@ -138,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { createUserWithEmailAndPassword } = await import('../firebase');
       await createUserWithEmailAndPassword(auth, email, pass);
+      posthog.capture('user_signed_up', { method: 'email' });
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -209,6 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      posthog.capture('user_logged_out');
+      posthog.reset();
       await auth.signOut();
       setUser(null);
     } catch (error) {

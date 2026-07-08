@@ -23,7 +23,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, o
 import { handleFirestoreError, OperationType } from './firebase';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
-import { initPostHog } from './lib/posthog';
+import { posthog } from './lib/posthog';
 
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -318,6 +318,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                             updatePlan('trial');
                             resetAndClose();
                           } else {
+                            posthog.capture('plan_upgrade_started', { plan: p.id, billing_cycle: billingCycle, price: p.price });
                             setSelectedPlan(p);
                             setPaymentError(null);
                             setStep('payment');
@@ -432,6 +433,7 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                             setIsPaying(true);
                             await actions.order.capture();
                             await updatePlan(selectedPlan.id);
+                            posthog.capture('payment_completed', { plan: selectedPlan.id, billing_cycle: billingCycle, price: selectedPlan.price });
                             setIsPaying(false);
                             setStep('success');
                           } catch (e) {
@@ -442,10 +444,12 @@ const PricingModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => voi
                         }
                       }}
                       onCancel={(data) => {
+                        posthog.capture('payment_cancelled', { plan: selectedPlan?.id, price: selectedPlan?.price });
                         setIsPaying(false);
                         setPaymentError("Оплата была отменена пользователем. Средства с вашей карты не списывались.");
                       }}
                       onError={(err) => {
+                        posthog.capture('payment_failed', { plan: selectedPlan?.id, price: selectedPlan?.price });
                         setIsPaying(false);
                         setPaymentError("Ошибка проведения платежа. Пожалуйста, проверьте баланс вашей карты или попробуйте другую карту.");
                       }}
@@ -909,6 +913,7 @@ function MainApp() {
           category: 'other',
           createdAt: serverTimestamp()
         });
+        posthog.capture('wardrobe_item_added', { plan: user.plan });
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, path);
         setError(t('errorGeneric'));
@@ -925,6 +930,7 @@ function MainApp() {
     const path = `wardrobe/${id}`;
     try {
       await deleteDoc(doc(db, 'wardrobe', id));
+      posthog.capture('wardrobe_item_deleted');
       setSelectedWardrobeItems(prev => prev.filter(item => item.id !== id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, path);
@@ -964,6 +970,7 @@ function MainApp() {
         wardrobeIds: selectedWardrobeItems.map(item => item.id),
         createdAt: serverTimestamp()
       });
+      posthog.capture('look_saved', { plan: user.plan });
       setLookName('');
       setSuccess(t('lookSaved'));
       setTimeout(() => setSuccess(null), 3000);
@@ -978,6 +985,7 @@ function MainApp() {
     const path = `looks/${id}`;
     try {
       await deleteDoc(doc(db, 'looks', id));
+      posthog.capture('look_deleted');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, path);
     }
@@ -988,6 +996,7 @@ function MainApp() {
       setError(t('noWardrobeItems'));
       return;
     }
+    posthog.capture('ai_suggestions_requested', { wardrobe_count: wardrobe.length, event_type: eventType, weather });
     setIsSuggesting(true);
     setError(null);
     try {
@@ -1050,6 +1059,7 @@ function MainApp() {
 
     const canProcess = await incrementUsage();
     if (!canProcess) {
+      posthog.capture('generation_limit_reached', { plan: user?.plan });
       setError(user?.plan === 'trial' ? t('trialLimitText') : t('basicDailyLimitText'));
       setIsPricingModalOpen(true);
       setIsProcessing(false);
@@ -1102,6 +1112,11 @@ function MainApp() {
       }
 
       setResultImages(validResults);
+      posthog.capture('outfit_generated', {
+        plan: user?.plan,
+        variant_count: validResults.length,
+        has_wardrobe_items: selectedWardrobeItems.length > 0,
+      });
 
       if (user) {
         const historyPath = 'history';
@@ -1192,9 +1207,6 @@ function MainApp() {
     </div>
   );
 }
-
-// Инициализируем PostHog при запуске кода
-initPostHog();
 
 export default function App() {
   useEffect(() => {
