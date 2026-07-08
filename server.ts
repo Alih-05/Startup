@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import dotenv from 'dotenv';
+// @ts-ignore
 import SqliteStore from 'better-sqlite3-session-store';
 import helmet from 'helmet';
 import axios from 'axios';
@@ -12,7 +13,7 @@ import axios from 'axios';
 dotenv.config();
 
 const db = new Database('database.db');
-const SessionStore = SqliteStore(session);
+const SessionStore = (SqliteStore as any)(session);
 
 // Initialize database
 db.exec(`
@@ -182,8 +183,8 @@ async function startServer() {
       const user = { id: info.lastInsertRowid, username, email };
       (req.session as any).userId = user.id;
 
-      // Fallback-токен
-      const token = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }));
+      // Fallback-токен (base64)
+      const token = Buffer.from(JSON.stringify({ userId: user.id, timestamp: Date.now() })).toString('base64');
 
       console.log(`User registered successfully: ${user.id}`);
       res.json({ user, token });
@@ -210,8 +211,8 @@ async function startServer() {
 
       (req.session as any).userId = user.id;
 
-      // Generate a simple token as fallback
-      const token = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }));
+      // Generate a simple token as fallback (base64)
+      const token = Buffer.from(JSON.stringify({ userId: user.id, timestamp: Date.now() })).toString('base64');
 
       console.log(`User logged in: ${user.id}`);
       res.json({
@@ -231,7 +232,7 @@ async function startServer() {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
           const token = authHeader.split(' ')[1];
-          const payload = JSON.parse(atob(token));
+          const payload = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
           if (payload.userId) {
             (req.session as any).userId = payload.userId;
             console.log(`Authenticated via Token: ${payload.userId}`);

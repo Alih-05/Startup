@@ -17,9 +17,26 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify file watching is disabled to prevent flickering during agent edits.
       hmr: false,
       allowedHosts: true,
+      proxy: {
+        '/ingest/static': {
+          target: 'https://us-assets.i.posthog.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/ingest/, ''),
+        },
+        '/ingest/array': {
+          target: 'https://us-assets.i.posthog.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/ingest/, ''),
+        },
+        '/ingest': {
+          target: env.VITE_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/ingest/, ''),
+        },
+      },
     },
   };
 });
