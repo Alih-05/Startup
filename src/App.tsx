@@ -9,6 +9,7 @@ import { Upload, Shirt, User, Loader2, Download, RefreshCw, Sparkles, Image as I
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ReactGA from 'react-ga4';
 
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import AuthModal from './components/AuthModal';
@@ -22,7 +23,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, o
 import { handleFirestoreError, OperationType } from './firebase';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import LiveRegistrationBanner from './components/LiveRegistrationBanner/LiveRegistrationBanner';
-import ReactGA from "react-ga4";
+import { initPostHog } from './lib/posthog';
 
 // Initialize Gemini API
 const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -1192,7 +1193,9 @@ function MainApp() {
   );
 }
 
-// ИСПРАВЛЕННЫЙ КОРНЕВОЙ КОМПОНЕНТ APP С ЗАКРЫТЫМИ ТЕГАМИ ПРОВАЙДЕРОВ
+// Инициализируем PostHog при запуске кода
+initPostHog();
+
 export default function App() {
   useEffect(() => {
     ReactGA.send({ hitType: "pageview", page: window.location.pathname });
